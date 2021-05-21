@@ -3,9 +3,11 @@ package com.keepcoding.api_planes_on_paper.service;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerIsReadyRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerHasSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
+import com.keepcoding.api_planes_on_paper.exceptions.InvalidPlanesBorderException;
 import com.keepcoding.api_planes_on_paper.models.GameplayStatus;
 import com.keepcoding.api_planes_on_paper.models.random_game.RandomGameplay;
 import com.keepcoding.api_planes_on_paper.models.random_game.RandomGamePlayer;
+import com.keepcoding.api_planes_on_paper.service.util.VerifyBorder;
 import com.keepcoding.api_planes_on_paper.storage.RandomGameplayRepository;
 
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -14,7 +16,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
 import javax.transaction.Transactional;
 
 @Service
@@ -91,19 +92,27 @@ public class RandomGameplayService {
      
     // PUT player_one.isReady && player_two.isReady TO random_gameplay FROM random_gameplay_repository
     @Transactional
-    public void playerIsReady(PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException {
-    	// update isReady data to 'true'
-	    RandomGameplay randomGamePlay = randomGameplayRepository.findById(playerIsReadyRequest.getGameID())
-			    .orElseThrow(() -> new GameNotFoundException("room with id: " + playerIsReadyRequest.getGameID() + " doesn't exists!"));
-    
-        // check where the request is coming from,
-        // change the status and planes border
-	    if(playerIsReadyRequest.getPlayer().equals("playerOne")) {
-	    	randomGamePlay.getPlayerOne().setIsReady(true);
-	    	randomGamePlay.getPlayerOne().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+    public void playerIsReady(PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException, InvalidPlanesBorderException {
+	    final VerifyBorder verifyBorder = new VerifyBorder(playerIsReadyRequest.getPlanesBorder());
+
+	    // verify planes border and notify the player
+	    // if the planes border is not good
+    	if (verifyBorder.verifyBorder()) {
+		    // update isReady data to 'true'
+		    RandomGameplay randomGamePlay = randomGameplayRepository.findById(playerIsReadyRequest.getGameID())
+				    .orElseThrow(() -> new GameNotFoundException("room with id: " + playerIsReadyRequest.getGameID() + " doesn't exists!"));
+
+		    // check where the request is coming from,
+		    // change the status and planes border
+		    if(playerIsReadyRequest.getPlayer().equals("playerOne")) {
+			    randomGamePlay.getPlayerOne().setIsReady(true);
+			    randomGamePlay.getPlayerOne().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+		    } else {
+			    randomGamePlay.getPlayerTwo().setIsReady(true);
+			    randomGamePlay.getPlayerTwo().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+		    }
 	    } else {
-	    	randomGamePlay.getPlayerTwo().setIsReady(true);
-	    	randomGamePlay.getPlayerTwo().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+    		throw new InvalidPlanesBorderException("the planes border is not valid");
 	    }
     }
 

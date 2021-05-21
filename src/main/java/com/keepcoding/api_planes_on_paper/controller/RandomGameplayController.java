@@ -3,6 +3,7 @@ package com.keepcoding.api_planes_on_paper.controller;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerIsReadyRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerHasSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
+import com.keepcoding.api_planes_on_paper.exceptions.InvalidPlanesBorderException;
 import com.keepcoding.api_planes_on_paper.models.random_game.RandomGameplay;
 import com.keepcoding.api_planes_on_paper.service.RandomGameplayService;
 
@@ -42,7 +43,7 @@ public class RandomGameplayController {
 
     // the player is ready to start the game
     @PutMapping(path = "/random-game/player-is-ready")
-    public void playerIsReady(@RequestBody PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException {
+    public void playerIsReady(@RequestBody PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException, InvalidPlanesBorderException {
         randomGameplayService.playerIsReady(playerIsReadyRequest);
     }
 
