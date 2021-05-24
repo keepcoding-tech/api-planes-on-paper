@@ -1,5 +1,6 @@
 package com.keepcoding.api_planes_on_paper.controller;
 
+import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.AttackEnemyPlanesRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerIsReadyRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerHasSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
@@ -45,6 +46,11 @@ public class RandomGameplayController {
     @PutMapping(path = "/random-game/player-is-ready")
     public void playerIsReady(@RequestBody PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException, InvalidPlanesBorderException {
         randomGameplayService.playerIsReady(playerIsReadyRequest);
+    }
+
+    @PutMapping(path = "/random-game/attack")
+    public void attackPlanes(@RequestBody AttackEnemyPlanesRequest attackEnemyPlanesRequest) throws GameNotFoundException {
+        randomGameplayService.attackPlanes(attackEnemyPlanesRequest);
     }
 
     // the player has surrendered

@@ -21,6 +21,9 @@ public class RandomGamePlayer {
 	@Column(name = "is_ready")
 	private boolean isReady;
 
+	@Column(name = "player_turn")
+	private boolean playerTurn;
+
 	@Column(name = "destroyed_planes")
 	private int destroyedPlanes;
 
@@ -35,12 +38,14 @@ public class RandomGamePlayer {
 			boolean isConnected,
 			boolean hasSurrendered,
 			boolean isReady,
+			boolean playerTurn,
 			int destroyedPlanes
 	) {
 		this.playerNickname = playerNickname;
 		this.isConnected = isConnected;
 		this.hasSurrendered = hasSurrendered;
 		this.isReady = isReady;
+		this.playerTurn = playerTurn;
 		this.destroyedPlanes = destroyedPlanes;
 	}
 
@@ -78,12 +83,20 @@ public class RandomGamePlayer {
 		this.isReady = isReady;
 	}
 
+	public void setPlayerTurn(boolean playerTurn) {
+		this.playerTurn = playerTurn;
+	}
+
 	public void setDestroyedPlanes(int destroyedPlanes) {
 		this.destroyedPlanes = destroyedPlanes;
 	}
 
 	public void setPlanesBorder(int[][] planesBorder) {
 		this.planesBorder = planesBorder;
+	}
+
+	public void setPlanesBorderValue(int x, int y) {
+		planesBorder[x][y] = planesBorder[x][y] == 0 ? 3 : 4;
 	}
 
 	// getters
@@ -101,6 +114,10 @@ public class RandomGamePlayer {
 
 	public boolean getIsReady() {
 		return isReady;
+	}
+
+	public boolean getPlayerTurn() {
+		return playerTurn;
 	}
 
 	public int getDestroyedPlanes() {

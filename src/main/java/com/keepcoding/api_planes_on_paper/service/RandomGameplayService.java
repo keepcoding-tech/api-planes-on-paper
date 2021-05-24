@@ -1,5 +1,6 @@
 package com.keepcoding.api_planes_on_paper.service;
 
+import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.AttackEnemyPlanesRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerIsReadyRequest;
 import com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests.PlayerHasSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
@@ -47,8 +48,8 @@ public class RandomGameplayService {
     public RandomGameplay connectToRandomGameplay(String playerNickname) {
         // create a default new random gameplay	
         final String nickname = playerNickname.replaceAll("\"", "");
-        final RandomGamePlayer playerOne = new RandomGamePlayer(nickname, true, false, false, 0);
-        final RandomGamePlayer playerTwo = new RandomGamePlayer("-", false, false, false, 0);
+        final RandomGamePlayer playerOne = new RandomGamePlayer(nickname, true, false, false, true, 0);
+        final RandomGamePlayer playerTwo = new RandomGamePlayer("-", false, false, false, false, 0);
         final RandomGameplay newRandomGameplay = new RandomGameplay(GameplayStatus.WAITING, playerOne, playerTwo);
 
         // search for an open random gameplay to join, if not games are found create one
@@ -113,6 +114,28 @@ public class RandomGameplayService {
 		    }
 	    } else {
     		throw new InvalidPlanesBorderException("the planes border is not valid");
+	    }
+    }
+
+    // PUT
+    @Transactional
+    public void attackPlanes(AttackEnemyPlanesRequest attackEnemyPlanesRequest) throws GameNotFoundException {
+    	final Long gameID = attackEnemyPlanesRequest.getGameID();
+    	final String player = attackEnemyPlanesRequest.getPlayer();
+    	final int posX = attackEnemyPlanesRequest.getPositionX();
+    	final int posY = attackEnemyPlanesRequest.getPositionY();
+
+    	RandomGameplay randomGameplay = randomGameplayRepository.findById(gameID)
+			    .orElseThrow(() -> new GameNotFoundException("game with id: " + gameID + " doesn't exists!"));
+
+	    if (player.equals("playerOne")) {
+    		randomGameplay.getPlayerTwo().setPlanesBorderValue(posX, posY);
+		    randomGameplay.getPlayerTwo().setPlayerTurn(true);
+		    randomGameplay.getPlayerOne().setPlayerTurn(false);
+	    } else {
+		    randomGameplay.getPlayerOne().setPlanesBorderValue(posX, posY);
+    		randomGameplay.getPlayerOne().setPlayerTurn(true);
+    		randomGameplay.getPlayerTwo().setPlayerTurn(false);
 	    }
     }
 
