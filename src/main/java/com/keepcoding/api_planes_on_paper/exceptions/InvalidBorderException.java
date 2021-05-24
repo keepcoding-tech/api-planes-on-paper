@@ -1,9 +1,9 @@
 package com.keepcoding.api_planes_on_paper.exceptions;
 
-public class InvalidPlanesBorderException extends Exception{
+public class InvalidBorderException extends Exception{
 	private final String message;
 
-	public InvalidPlanesBorderException(String message) {
+	public InvalidBorderException(String message) {
 		this.message = message;
 	}
 

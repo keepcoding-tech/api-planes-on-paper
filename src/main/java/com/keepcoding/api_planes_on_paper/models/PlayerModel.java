@@ -1,10 +1,10 @@
-package com.keepcoding.api_planes_on_paper.models.private_game;
+package com.keepcoding.api_planes_on_paper.models;
 
 import javax.persistence.*;
 
 @Entity
-@Table(name = "private_game_player")
-public class PrivateGamePlayer {
+@Table(name = "random_game_player")
+public class PlayerModel {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long playerID;
@@ -21,6 +21,9 @@ public class PrivateGamePlayer {
 	@Column(name = "is_ready")
 	private boolean isReady;
 
+	@Column(name = "player_turn")
+	private boolean playerTurn;
+
 	@Column(name = "destroyed_planes")
 	private int destroyedPlanes;
 
@@ -28,23 +31,26 @@ public class PrivateGamePlayer {
 	private int[][] planesBorder;
 
 	// constructors
-	public PrivateGamePlayer() {}
+	public PlayerModel() {}
 
-	public PrivateGamePlayer(
+	public PlayerModel(
 			String playerNickname,
 			boolean isConnected,
 			boolean hasSurrendered,
 			boolean isReady,
+			boolean playerTurn,
 			int destroyedPlanes
 	) {
 		this.playerNickname = playerNickname;
 		this.isConnected = isConnected;
 		this.hasSurrendered = hasSurrendered;
 		this.isReady = isReady;
+		this.playerTurn = playerTurn;
 		this.destroyedPlanes = destroyedPlanes;
 	}
 
-	public PrivateGamePlayer(
+
+	public PlayerModel(
 			String playerNickname,
 			boolean isConnected,
 			boolean hasSurrendered,
@@ -77,12 +83,20 @@ public class PrivateGamePlayer {
 		this.isReady = isReady;
 	}
 
+	public void setPlayerTurn(boolean playerTurn) {
+		this.playerTurn = playerTurn;
+	}
+
 	public void setDestroyedPlanes(int destroyedPlanes) {
 		this.destroyedPlanes = destroyedPlanes;
 	}
 
 	public void setPlanesBorder(int[][] planesBorder) {
 		this.planesBorder = planesBorder;
+	}
+
+	public void setPlanesBorderValue(int x, int y) {
+		planesBorder[x][y] = planesBorder[x][y] == 0 ? 3 : 4;
 	}
 
 	// getters
@@ -100,6 +114,10 @@ public class PrivateGamePlayer {
 
 	public boolean getIsReady() {
 		return isReady;
+	}
+
+	public boolean getPlayerTurn() {
+		return playerTurn;
 	}
 
 	public int getDestroyedPlanes() {

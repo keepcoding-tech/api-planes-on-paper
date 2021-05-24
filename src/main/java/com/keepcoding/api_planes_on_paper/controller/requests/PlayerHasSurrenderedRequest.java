@@ -1,4 +1,4 @@
-package com.keepcoding.api_planes_on_paper.controller.requests.random_game_requests;
+package com.keepcoding.api_planes_on_paper.controller.requests;
 
 public class PlayerHasSurrenderedRequest {
 	private Long gameID;
