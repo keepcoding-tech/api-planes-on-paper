@@ -1,64 +1,71 @@
 package com.keepcoding.api_planes_on_paper.models;
 
 import javax.persistence.*;
+import java.util.UUID;
 
 @Entity
-@Table(name = "random_game_model")
+@Table(name = "gameplay_room")
 public class GameplayModel {
     @Id
     @GeneratedValue
-    private Long gameID;
+    private Long id;
 
-    @Column(name = "access_token")
+    @Column(name = "game_id", updatable = false, nullable = false)
+    private String gameID = UUID.randomUUID().toString();
+
+    @Column(name = "gameplay_status", updatable = true, nullable = false)
+    private GameplayStatus gameStatus;
+
+    @Column(name = "player_status", updatable = true, nullable = false)
+    private PlayerStatus playerStatus;
+
+    @Column(name = "access_token", updatable = false, nullable = true)
     private String accessToken;
 
-    @Column(name = "game_state")
-    private GameplayStatus gameplayStatus;
-
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "player_one")
+    @JoinColumn(name = "player_one", updatable = true, nullable = false)
     private PlayerModel playerOne;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "player_two")
+    @JoinColumn(name = "player_two", updatable = true, nullable = true)
     private PlayerModel playerTwo;
 
     // constructors
     public GameplayModel() {}
 
     public GameplayModel(
-            GameplayStatus gameplayStatus,
-            PlayerModel playerOne,
-            PlayerModel playerTwo
+            GameplayStatus gameStatus,
+            PlayerStatus playerStatus,
+            PlayerModel playerOne
     ) {
-        this.gameplayStatus = gameplayStatus;
+        this.gameStatus = gameStatus;
+        this.playerStatus = playerStatus;
         this.playerOne = playerOne;
-        this.playerTwo = playerTwo;
     }
 
     public GameplayModel(
-            GameplayStatus gameplayStatus,
+            GameplayStatus gameStatus,
+            PlayerStatus playerStatus,
             String accessToken,
-            PlayerModel playerOne,
-            PlayerModel playerTwo
+            PlayerModel playerOne
     ) {
-        this.gameplayStatus = gameplayStatus;
+        this.gameStatus = gameStatus;
+        this.playerStatus = playerStatus;
         this.accessToken = accessToken;
         this.playerOne = playerOne;
-        this.playerTwo = playerTwo;
     }
 
     // setters
-    public void setGameID(Long gameID) {
-        this.gameID = gameID;
-    }
-
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
     }
 
-    public void setGameplayStatus(GameplayStatus gamePlayStatus) {
-        this.gameplayStatus = gamePlayStatus;
+    public void setGameStatus(GameplayStatus gamePlayStatus) {
+        this.gameStatus = gamePlayStatus;
+    }
+
+    public void setPlayerStatus(PlayerStatus playerStatus) {
+        this.playerStatus = playerStatus;
     }
 
     public void setPlayerOne(PlayerModel playerOne) {
@@ -70,7 +77,7 @@ public class GameplayModel {
     }
 
     // getters
-    public Long getGameID() {
+    public String getGameID() {
         return gameID;
     }
 
@@ -78,8 +85,12 @@ public class GameplayModel {
         return accessToken;
     }
 
-    public GameplayStatus getGameplayStatus() {
-        return gameplayStatus;
+    public PlayerStatus getPlayerStatus() {
+        return playerStatus;
+    }
+
+    public GameplayStatus getGameStatus() {
+        return gameStatus;
     }
 
     public PlayerModel getPlayerOne() {

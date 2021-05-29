@@ -1,13 +1,13 @@
 package com.keepcoding.api_planes_on_paper.controller.requests;
 
-public class JoinPrivateGameRequest {
+public class ConnectToGameRequest {
 	private String playerNickname;
 	private String accessToken;
 
 	// constructors
-	public JoinPrivateGameRequest() {}
+	public ConnectToGameRequest() {}
 
-	public JoinPrivateGameRequest(String playerNickname, String accessToken) {
+	public ConnectToGameRequest(String playerNickname, String accessToken) {
 		this.playerNickname = playerNickname;
 		this.accessToken = accessToken;
 	}

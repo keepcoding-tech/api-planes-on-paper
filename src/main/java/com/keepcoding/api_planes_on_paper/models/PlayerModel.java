@@ -3,31 +3,25 @@ package com.keepcoding.api_planes_on_paper.models;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "random_game_player")
+@Table(name = "game_player")
 public class PlayerModel {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long playerID;
 
-	@Column(name = "player_nickname")
+	@Column(name = "player_nickname", updatable = false, nullable = false)
 	private String playerNickname;
 
-	@Column(name = "is_connected")
-	private boolean isConnected;
-
-	@Column(name = "has_surrendered")
+	@Column(name = "has_surrendered", updatable = true, nullable = false)
 	private boolean hasSurrendered;
 
-	@Column(name = "is_ready")
+	@Column(name = "is_ready", updatable = true, nullable = false)
 	private boolean isReady;
 
-	@Column(name = "player_turn")
-	private boolean playerTurn;
-
-	@Column(name = "destroyed_planes")
+	@Column(name = "destroyed_planes", updatable = true, nullable = false)
 	private int destroyedPlanes;
 
-	@Column(name = "planes_border", length = 3000)
+	@Column(name = "planes_border", length = 3000, updatable = true, nullable = true)
 	private int[][] planesBorder;
 
 	// constructors
@@ -35,44 +29,19 @@ public class PlayerModel {
 
 	public PlayerModel(
 			String playerNickname,
-			boolean isConnected,
 			boolean hasSurrendered,
 			boolean isReady,
-			boolean playerTurn,
 			int destroyedPlanes
 	) {
 		this.playerNickname = playerNickname;
-		this.isConnected = isConnected;
-		this.hasSurrendered = hasSurrendered;
-		this.isReady = isReady;
-		this.playerTurn = playerTurn;
-		this.destroyedPlanes = destroyedPlanes;
-	}
-
-
-	public PlayerModel(
-			String playerNickname,
-			boolean isConnected,
-			boolean hasSurrendered,
-			boolean isReady,
-			int destroyedPlanes,
-			int[][] planesBorder
-	) {
-		this.playerNickname = playerNickname;
-		this.isConnected = isConnected;
 		this.hasSurrendered = hasSurrendered;
 		this.isReady = isReady;
 		this.destroyedPlanes = destroyedPlanes;
-		this.planesBorder = planesBorder;
 	}
 
 	// setters
 	public void setPlayerNickname(String playerNickname) {
 		this.playerNickname = playerNickname;
-	}
-
-	public void setIsConnected(boolean isConnected) {
-		this.isConnected = isConnected;
 	}
 
 	public void setHasSurrendered(boolean hasSurrendered) {
@@ -83,29 +52,25 @@ public class PlayerModel {
 		this.isReady = isReady;
 	}
 
-	public void setPlayerTurn(boolean playerTurn) {
-		this.playerTurn = playerTurn;
-	}
-
 	public void setDestroyedPlanes(int destroyedPlanes) {
 		this.destroyedPlanes = destroyedPlanes;
 	}
+
+	public void incrementDestroyedPlanes() {destroyedPlanes++;}
 
 	public void setPlanesBorder(int[][] planesBorder) {
 		this.planesBorder = planesBorder;
 	}
 
-	public void setPlanesBorderValue(int x, int y) {
+	public boolean setPlanesBorderValue(int x, int y) {
+		final int hitPlaneHead = planesBorder[x][y];
 		planesBorder[x][y] = planesBorder[x][y] == 0 ? 3 : 4;
+		return hitPlaneHead == 2;
 	}
 
 	// getters
 	public String getPlayerNickname() {
 		return playerNickname;
-	}
-
-	public boolean getIsConnected() {
-		return isConnected;
 	}
 
 	public boolean getHasSurrendered() {
@@ -114,10 +79,6 @@ public class PlayerModel {
 
 	public boolean getIsReady() {
 		return isReady;
-	}
-
-	public boolean getPlayerTurn() {
-		return playerTurn;
 	}
 
 	public int getDestroyedPlanes() {

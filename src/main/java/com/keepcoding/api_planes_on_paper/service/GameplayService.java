@@ -1,28 +1,34 @@
 package com.keepcoding.api_planes_on_paper.service;
 
-import com.keepcoding.api_planes_on_paper.controller.requests.JoinPrivateGameRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.AttackEnemyPlanesRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.PlayerIsReadyRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.PlayerHasSurrenderedRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.ConnectToGameRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.AttackEnemyRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.SetReadyRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.SetSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
 import com.keepcoding.api_planes_on_paper.exceptions.InvalidBorderException;
 import com.keepcoding.api_planes_on_paper.models.GameplayStatus;
 import com.keepcoding.api_planes_on_paper.models.GameplayModel;
 import com.keepcoding.api_planes_on_paper.models.PlayerModel;
+import com.keepcoding.api_planes_on_paper.models.PlayerStatus;
 import com.keepcoding.api_planes_on_paper.service.util.VerifyBorder;
 import com.keepcoding.api_planes_on_paper.storage.GameplayRepository;
 
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+
 import javax.transaction.Transactional;
 
 @Service
 @EnableScheduling
+@Transactional
+@EnableTransactionManagement
 public class GameplayService {
     private final GameplayRepository gameplayRepository;
 
@@ -31,63 +37,89 @@ public class GameplayService {
         this.gameplayRepository = gameplayRepository;
     }
 
-    // SELECT * FROM random_gameplay_repository
-    public List<GameplayModel> getAllRandomGames() {
+    // SELECT * FROM gameplay_repository
+    public List<GameplayModel> getAllGameplayRooms() {
         return gameplayRepository.findAll();
     }
 
-    // SELECT random_gameplay FROM random_gameplay_repository WHERE gameID = {gameID}
-    public GameplayModel getRandomGameplay(String gameID) throws GameNotFoundException {
-        final String game = gameID.replaceAll("\"", "");
-
-        return gameplayRepository.findById(Long.parseLong(game)).orElseThrow(() ->
-                new GameNotFoundException("game with id " + gameID + " doesn't exists!"));
+    // SELECT gameplay_room FROM gameplay_repository WHERE gameID = {gameID}
+    public GameplayModel getGameplayRoom(String uuid) throws GameNotFoundException {
+    	final String gameID = uuid.replaceAll("\"", "");
+        return gameplayRepository.findGameplayByGameID(gameID).orElseThrow(() -> new GameNotFoundException(gameID));
     }
 
-    // POST random_gameplay TO random_gameplay_repository
+    // check if the request was made for a random or private game
+	public GameplayModel connectToGameplayRoom(ConnectToGameRequest request) throws GameNotFoundException {
+		final String nickname = request.getPlayerNickname().replaceAll("\"", "");
+
+		if (request.getAccessToken() != null) {
+			final String accessToken = request.getAccessToken().replaceAll("\"", "");
+			return joinPrivateGameplay(nickname, accessToken);
+		}
+
+		return joinRandomGameplay(nickname);
+	}
+
+    // SELECT gameplay_room FROM gameplay_repository gp
+    // WHERE gameplay_room.accessToken = :accessToken
+    // AND gameplay_room.gameplayStatus = WAITING
     @Transactional
-    public GameplayModel connectToRandomGameplay(String playerNickname) {
-        // create a default new random gameplay	
-        final String nickname = playerNickname.replaceAll("\"", "");
-        final PlayerModel playerOne = new PlayerModel(nickname, true, false, false, true, 0);
-        final PlayerModel playerTwo = new PlayerModel("-", false, false, false, false, 0);
-        final GameplayModel newGameplayModel = new GameplayModel(GameplayStatus.WAITING, playerOne, playerTwo);
+    public GameplayModel joinRandomGameplay(String nickname) {
+        // create a default new gameplay model
+        final PlayerModel playerModel = new PlayerModel(nickname, false, false, 0);
+        final GameplayModel newGameplayModel = new GameplayModel(
+        		GameplayStatus.WAITING, PlayerStatus.PLAYER_ONE, playerModel);
 
-        // search for an open random gameplay to join, if not games are found create one
-	    GameplayModel gamePlayModel = gameplayRepository.findAll().stream()
-			    .filter(rgp -> rgp.getGameplayStatus().equals(GameplayStatus.WAITING)
-			    && rgp.getAccessToken() == null).findFirst().orElse(newGameplayModel);
+        // search for an open gameplay model to join, if no games are found create one
+	    GameplayModel gameplayModel = gameplayRepository.joinRandomGame(GameplayStatus.WAITING).orElse(newGameplayModel);
 
-	    // if a new random gameplay was created, save it to the database
-	    if (gamePlayModel == newGameplayModel) {
-	    	gameplayRepository.save(gamePlayModel);
+	    // if a new gameplay model was created, save it to the database
+	    if (gameplayModel.getGameID().equals(newGameplayModel.getGameID())) {
+	    	gameplayRepository.save(gameplayModel);
 	    } else {
-	    	// else join random gameplay and change status
-		    playerTwo.setPlayerNickname(nickname);
-		    playerTwo.setIsConnected(true);
-
-		    gamePlayModel.setPlayerTwo(playerTwo);
-		    gamePlayModel.setGameplayStatus(GameplayStatus.PREPARING);
+	    	// else join gameplay room and change status
+		    gameplayModel.setPlayerTwo(playerModel);
+		    gameplayModel.setGameStatus(GameplayStatus.PREPARING);
 	    }
-	    return gamePlayModel;
+
+	    return gameplayModel;
     }
 
-	// POST private_gameplay TO private_gameplay_repository
-	public GameplayModel createNewPrivateGame(String playerNickname) {
-		// create a new private game
+	// UPDATE gameplay_room
+	// SET player_two = :request.playerTwo, gameplay_status = PREPARING
+	// WHERE access_token = :request.accessToken
+	@Transactional
+	public GameplayModel joinPrivateGameplay(String nickname, String accessToken) throws GameNotFoundException {
+		// initializing second player
+		final PlayerModel playerTow = new PlayerModel(nickname, false, false, 0);
+
+		// search for the private gameplay room and check the accessToken
+		GameplayModel gameplayModel = gameplayRepository.joinPrivateGame(accessToken, GameplayStatus.WAITING)
+				.orElseThrow(() -> new GameNotFoundException(accessToken));
+
+		// set the second player and change the state of the gameplay
+		gameplayModel.setPlayerTwo(playerTow);
+		gameplayModel.setGameStatus(GameplayStatus.PREPARING);
+
+		return gameplayModel;
+	}
+
+	// INSERT INTO gameplay_repository VALUES gameplay_room
+	public GameplayModel createNewGameplayRoom(String playerNickname) {
+		// create a new gameplay model
 		final String nickname = playerNickname.replaceAll("\"", "");
-		final PlayerModel playerOne = new PlayerModel(nickname, true, false, false, true, 0);
-		final PlayerModel playerTwo = new PlayerModel("-", false, false, false, false, 0);
-		final GameplayModel newGameplayModel = new GameplayModel(GameplayStatus.WAITING, accessTokenGenerator(), playerOne, playerTwo);
+		final PlayerModel playerOne = new PlayerModel(nickname, false, false, 0);
+		final GameplayModel gameplayModel = new GameplayModel(
+				GameplayStatus.WAITING, PlayerStatus.PLAYER_ONE, accessTokenGenerator(), playerOne);
 
 		// make sure that the access token is unique
-		while (gameplayRepository.findPrivateGameByAccessToken(newGameplayModel.getAccessToken()).isPresent()) {
-			newGameplayModel.setAccessToken(accessTokenGenerator());
+		while (gameplayRepository.findExistentToken(gameplayModel.getAccessToken()).isPresent()) {
+			gameplayModel.setAccessToken(accessTokenGenerator());
 		}
 
 		// save the game to the database
-		gameplayRepository.save(newGameplayModel);
-		return newGameplayModel;
+		gameplayRepository.save(gameplayModel);
+		return gameplayModel;
 	}
 
 	// returns a unique string representing the access token for a private gameplay room
@@ -102,117 +134,149 @@ public class GameplayService {
 			final char aux = characters.charAt(random.nextInt(characters.length()));
 			accessToken = accessToken + aux;
 		}
+
 		return accessToken;
 	}
 
-	// PUT
+	// UPDATE gameplay_room
+	// IF(:request.identity = "PLAYER_ONE",
+	// SET player_one.is_ready = true, player_one.planes_border = :request.planesBorder,
+	// SET player_two.is_ready = true, player_tow.planes_border = :request.planesBorder)
 	@Transactional
-	public GameplayModel joinPrivateGame(JoinPrivateGameRequest request) throws GameNotFoundException {
-		final String accessToken = request.getAccessToken().replaceAll("\"", "");
-		final String playerNickname = request.getPlayerNickname().replaceAll("\"", "");
-		final PlayerModel playerTow = new PlayerModel(playerNickname, true, false, false, false, 0);
-
-		GameplayModel gameplayModel = gameplayRepository.findAll().stream()
-				.filter(rgp -> rgp.getGameplayStatus().equals(GameplayStatus.WAITING) && rgp.getAccessToken().equals(accessToken)).findFirst()
-				.orElseThrow(() -> new GameNotFoundException("game with access token: " + request.getAccessToken() + " doesn't exists!"));
-
-		gameplayModel.setPlayerTwo(playerTow);
-		gameplayModel.setGameplayStatus(GameplayStatus.PREPARING);
-
-		return gameplayModel;
-	}
-     
-    // PUT player_one.isReady && player_two.isReady TO random_gameplay FROM random_gameplay_repository
-    @Transactional
-    public void playerIsReady(PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException, InvalidBorderException {
-	    final VerifyBorder verifyBorder = new VerifyBorder(playerIsReadyRequest.getPlanesBorder());
+    public void setReady(SetReadyRequest request) throws GameNotFoundException, InvalidBorderException {
+	    final VerifyBorder verifyBorder = new VerifyBorder(request.getPlanesBorder());
+	    final String gameID = request.getGameID().replaceAll("\"", "");
+	    final PlayerStatus identity = request.getIdentity();
+	    final int[][] planesBorder = request.getPlanesBorder();
 
 	    // verify planes border and notify the player
-	    // if the planes border is not good
+	    // if the planes border is not valid
     	if (verifyBorder.verifyBorder()) {
-		    // update isReady data to 'true'
-		    GameplayModel gamePlayModel = gameplayRepository.findById(playerIsReadyRequest.getGameID())
-				    .orElseThrow(() -> new GameNotFoundException("room with id: " + playerIsReadyRequest.getGameID() + " doesn't exists!"));
+		    // search for a gameplay room based on the gameID
+		    GameplayModel gamePlayModel = gameplayRepository.findGameplayByGameID(gameID)
+				    .orElseThrow(() -> new GameNotFoundException(gameID));
 
-		    // check where the request is coming from,
-		    // change the status and planes border
-		    if(playerIsReadyRequest.getPlayer().equals("playerOne")) {
+		    // check where the request is coming from (playerOne or playerTow),
+		    // change the status of the game and the planes border of the player
+		    if(identity.equals(PlayerStatus.PLAYER_ONE)) {
 			    gamePlayModel.getPlayerOne().setIsReady(true);
-			    gamePlayModel.getPlayerOne().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+			    gamePlayModel.getPlayerOne().setPlanesBorder(planesBorder);
 		    } else {
 			    gamePlayModel.getPlayerTwo().setIsReady(true);
-			    gamePlayModel.getPlayerTwo().setPlanesBorder(playerIsReadyRequest.getPlanesBorder());
+			    gamePlayModel.getPlayerTwo().setPlanesBorder(planesBorder);
 		    }
 	    } else {
-    		throw new InvalidBorderException("the planes border is not valid");
+    		throw new InvalidBorderException();
 	    }
     }
 
-    // PUT
+	// UPDATE gameplay_room
+	// IF(:request.identity = "PLAYER_ONE",
+	// SET player_tow.planes_border = :request.planesBorder,
+	// SET player_one.planes_border = :request.planesBorder)
+	@Transactional
+	public void attackEnemy(AttackEnemyRequest request) throws GameNotFoundException {
+		final String gameID = request.getGameID().replaceAll("\"", "");
+		final PlayerStatus identity = request.getIdentity();
+		final int posX = request.getPosX();
+		final int posY = request.getPosY();
+
+		// search for a gameplay room based on the gameID
+		GameplayModel gameplayModel = gameplayRepository.findGameplayByGameID(gameID)
+				.orElseThrow(() -> new GameNotFoundException(gameID));
+
+		// check if the game is still in progress
+		if (gameplayModel.getGameStatus().equals(GameplayStatus.IN_PROGRESS)) {
+			if (identity.equals(PlayerStatus.PLAYER_ONE)) {
+				if (gameplayModel.getPlayerTwo().setPlanesBorderValue(posX, posY)) {
+					gameplayModel.getPlayerOne().incrementDestroyedPlanes();
+				}
+				gameplayModel.setPlayerStatus(PlayerStatus.PLAYER_TWO);
+			} else {
+				if (gameplayModel.getPlayerOne().setPlanesBorderValue(posX, posY)) {
+					gameplayModel.getPlayerTwo().incrementDestroyedPlanes();
+				}
+				gameplayModel.setPlayerStatus(PlayerStatus.PLAYER_ONE);
+			}
+		}
+	}
+
+    // UPDATE gameplay_room
+    // IF(:request.identity = "PLAYER_ONE",
+    // SET player_one.hasSurrendered = FALSE,
+    // SET player_two.hasSurrendered = FALSE)
     @Transactional
-    public void attackPlanes(AttackEnemyPlanesRequest attackEnemyPlanesRequest) throws GameNotFoundException {
-    	final Long gameID = attackEnemyPlanesRequest.getGameID();
-    	final String player = attackEnemyPlanesRequest.getPlayer();
-    	final int posX = attackEnemyPlanesRequest.getPosX();
-    	final int posY = attackEnemyPlanesRequest.getPosY();
+    public void setSurrendered(SetSurrenderedRequest request) throws GameNotFoundException {
+	    final String gameID = request.getGameID().replaceAll("\"", "");
+	    final PlayerStatus identity = request.getIdentity();
 
-    	GameplayModel gameplayModel = gameplayRepository.findById(gameID)
-			    .orElseThrow(() -> new GameNotFoundException("game with id: " + gameID + " doesn't exists!"));
+	    // search for a gameplay room based on the gameID
+	    GameplayModel gamePlayModel = gameplayRepository.findGameplayByGameID(gameID)
+		        .orElseThrow(() -> new GameNotFoundException(gameID));
 
-	    if (player.equals("playerOne")) {
-    		gameplayModel.getPlayerTwo().setPlanesBorderValue(posX, posY);
-		    gameplayModel.getPlayerTwo().setPlayerTurn(true);
-		    gameplayModel.getPlayerOne().setPlayerTurn(false);
-	    } else {
-		    gameplayModel.getPlayerOne().setPlanesBorderValue(posX, posY);
-    		gameplayModel.getPlayerOne().setPlayerTurn(true);
-    		gameplayModel.getPlayerTwo().setPlayerTurn(false);
-	    }
-    }
-
-    // PUT player_one.hasSurrendered && player_two.hasSurrendered TO random_gameplay FROM random_game_repository
-    @Transactional
-    public void playerHasSurrendered(PlayerHasSurrenderedRequest request) throws GameNotFoundException {
-        GameplayModel gamePlayModel = gameplayRepository.findById(request.getGameID())
-		        .orElseThrow(() -> new GameNotFoundException("game with id: " + request.getGameID() + " doesn't exists!"));
-
-        if(request.getPlayer().equals("playerOne")) {
+	    // check where the request is coming from (playerOne or playerTow ?),
+	    // change the status of "hasSurrendered" to true and "isConnected" to false
+        if(identity.equals(PlayerStatus.PLAYER_ONE)) {
             gamePlayModel.getPlayerOne().setHasSurrendered(true);
-            gamePlayModel.getPlayerOne().setIsConnected(false);
         } else {
             gamePlayModel.getPlayerTwo().setHasSurrendered(true);
-            gamePlayModel.getPlayerTwo().setIsConnected(false);
         }
     }
 
-    // DELETE random_gameplay FROM random_gameplay_repository WHERE gameID = {gameID}
-	public void deleteGameplay(String gameID) throws GameNotFoundException {
-		final String game = gameID.replaceAll("\"", "");
-		final boolean exists = gameplayRepository.existsById(Long.parseLong(game));
+    // DELETE gameplay_room FROM gameplay_repository WHERE gameplay_room.gameID = :gameID
+	@Transactional
+	public void deleteGameplayRoom(String uuid) throws GameNotFoundException {
+		final String gameID = uuid.replaceAll("\"", "");
+		final Optional<GameplayModel> exists = gameplayRepository.findGameplayByGameID(gameID);
 
-		if (!exists) {
-			throw new GameNotFoundException("game with id: " + game + " doesn't exists!");
+		// check if the game exists in the data base and delete it
+		if (!exists.isPresent()) {
+			throw new GameNotFoundException(gameID);
 		}
-		gameplayRepository.deleteById(Long.parseLong(game));
+
+		gameplayRepository.deleteGameplayByGameID(gameID);
     }
 
-	// check all the gameplay rooms and if any of them have both players ready
-	// change the gameplay status to 'IN_PROGRESS'
 	@Scheduled(fixedRate = 5000)
 	@Transactional
-	public void checkGameplayStatus() {
-		gameplayRepository.findAll().stream().filter(gameplayRoom -> {
-			final boolean playerOneIsReady = gameplayRoom.getPlayerOne().getIsReady();
-			final boolean playerTwoIsReady = gameplayRoom.getPlayerTwo().getIsReady();
-			final GameplayStatus gameplayStatus = gameplayRoom.getGameplayStatus();
+	public void scheduledTask() {
+    	gameplayRepository.findAll().stream().filter(gameplayModel -> {
+		    final PlayerModel playerOne = gameplayModel.getPlayerOne();
+		    final PlayerModel playerTwo = gameplayModel.getPlayerTwo();
+		    final GameplayStatus gameStatus = gameplayModel.getGameStatus();
 
-			// check if both players are connected and if both players are ready
-			if (playerOneIsReady && playerTwoIsReady && gameplayStatus.equals(GameplayStatus.PREPARING)) {
-				gameplayRoom.setGameplayStatus(GameplayStatus.IN_PROGRESS);
+		    // check all the gameplay rooms and if any of them have both players ready
+		    // change the gameplay status to 'IN_PROGRESS'
+		    if (gameplayModel.getGameStatus().equals(GameplayStatus.PREPARING)) {
+			    // check if both players are connected and ready to start the game
+			    if (playerOne.getIsReady() && playerTwo.getIsReady()
+					    && gameStatus.equals(GameplayStatus.PREPARING)) {
+				    gameplayModel.setGameStatus(GameplayStatus.IN_PROGRESS);
+				    return true;
+			    }
+		    }
 
-				return true;
-			}
-			return false;
-		}).findFirst();
+		    if (gameplayModel.getGameStatus().equals(GameplayStatus.IN_PROGRESS)) {
+			    // check if any player has destroyed all enemy's planes
+			    if (playerOne.getDestroyedPlanes() == 3) {
+				    gameplayModel.setGameStatus(GameplayStatus.FINISHED);
+				    gameplayModel.setPlayerStatus(PlayerStatus.PLAYER_ONE);
+				    return true;
+			    } else if (playerTwo.getDestroyedPlanes() == 3) {
+				    gameplayModel.setGameStatus(GameplayStatus.FINISHED);
+				    gameplayModel.setPlayerStatus(PlayerStatus.PLAYER_TWO);
+				    return true;
+			    }
+		    }
+
+		    if (gameplayModel.getGameStatus().equals(GameplayStatus.FINISHED)) {
+		    	// check if the game has finished
+			    if (playerOne.getHasSurrendered() && playerTwo.getHasSurrendered()) {
+			    	gameplayRepository.delete(gameplayModel);
+			    }
+		    }
+
+		    return false;
+	    }).findFirst();
 	}
 }

@@ -1,9 +1,9 @@
 package com.keepcoding.api_planes_on_paper.controller;
 
-import com.keepcoding.api_planes_on_paper.controller.requests.JoinPrivateGameRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.AttackEnemyPlanesRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.PlayerIsReadyRequest;
-import com.keepcoding.api_planes_on_paper.controller.requests.PlayerHasSurrenderedRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.ConnectToGameRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.AttackEnemyRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.SetReadyRequest;
+import com.keepcoding.api_planes_on_paper.controller.requests.SetSurrenderedRequest;
 import com.keepcoding.api_planes_on_paper.exceptions.GameNotFoundException;
 import com.keepcoding.api_planes_on_paper.exceptions.InvalidBorderException;
 import com.keepcoding.api_planes_on_paper.models.GameplayModel;
@@ -27,54 +27,51 @@ public class GameplayController {
 
     // get a list with all random games
     @GetMapping(path = "/list")
-    public ResponseEntity<List<GameplayModel>> getAllRandomGames() {
-        return ResponseEntity.ok(gameplayService.getAllRandomGames());
+    public ResponseEntity<List<GameplayModel>> getAllGameplayRooms() {
+        return ResponseEntity.ok(gameplayService.getAllGameplayRooms());
     }
 
     // get a specific random game
     @PostMapping(path = "/data")
-    public ResponseEntity<GameplayModel> getRandomGame(@RequestBody String gameID) throws GameNotFoundException {
-        return ResponseEntity.ok(gameplayService.getRandomGameplay(gameID));
+    public ResponseEntity<GameplayModel> getGameplayRoom(@RequestBody String gameID) throws GameNotFoundException {
+        return ResponseEntity.ok(gameplayService.getGameplayRoom(gameID));
     }
 
-    // connect the player to a random game
-    @PostMapping(path = "/connect-to-random-game")
-    public ResponseEntity<GameplayModel> connectToRandomGameplay(@RequestBody String playerNickname) {
-        return ResponseEntity.ok(gameplayService.connectToRandomGameplay(playerNickname));
+    // connect to a random or private game
+    @PostMapping(path = "/connect-to-game")
+    public ResponseEntity<GameplayModel> connectToGameplayRoom(
+            @RequestBody ConnectToGameRequest request) throws GameNotFoundException {
+        return  ResponseEntity.ok(gameplayService.connectToGameplayRoom(request));
     }
 
     // create new private game
-    @PostMapping(path = "/create-private-game")
-    public ResponseEntity<GameplayModel> createNewPrivateGame(@RequestBody String playerNickname) {
-        return ResponseEntity.ok(gameplayService.createNewPrivateGame(playerNickname));
-    }
-
-    // join private game
-    @PostMapping(path = "/join-private-game")
-    public ResponseEntity<GameplayModel> joinPrivateGame(@RequestBody JoinPrivateGameRequest request) throws GameNotFoundException {
-        return ResponseEntity.ok(gameplayService.joinPrivateGame(request));
+    @PostMapping(path = "/create-game")
+    public ResponseEntity<GameplayModel> createNewGameplayRoom(@RequestBody String playerNickname) {
+        return ResponseEntity.ok(gameplayService.createNewGameplayRoom(playerNickname));
     }
 
     // the player is ready to start the game
-    @PutMapping(path = "/player-is-ready")
-    public void playerIsReady(@RequestBody PlayerIsReadyRequest playerIsReadyRequest) throws GameNotFoundException, InvalidBorderException {
-        gameplayService.playerIsReady(playerIsReadyRequest);
+    @PutMapping(path = "/set-ready")
+    public void setReady(@RequestBody SetReadyRequest request)
+            throws GameNotFoundException, InvalidBorderException {
+        gameplayService.setReady(request);
     }
 
+    // modify a specific element from planesBorder matrix
     @PutMapping(path = "/attack")
-    public void attackPlanes(@RequestBody AttackEnemyPlanesRequest attackEnemyPlanesRequest) throws GameNotFoundException {
-        gameplayService.attackPlanes(attackEnemyPlanesRequest);
+    public void attackEnemy(@RequestBody AttackEnemyRequest request) throws GameNotFoundException {
+        gameplayService.attackEnemy(request);
     }
 
     // the player has surrendered
     @PutMapping(path = "/surrender")
-    public void playerHasSurrendered(@RequestBody PlayerHasSurrenderedRequest playerHasSurrenderedRequest) throws GameNotFoundException {
-        gameplayService.playerHasSurrendered(playerHasSurrenderedRequest);
+    public void setSurrendered(@RequestBody SetSurrenderedRequest request) throws GameNotFoundException {
+        gameplayService.setSurrendered(request);
     }
 
     // delete a specific random game
     @DeleteMapping(path = "/delete")
-    public void deleteGameplay(@RequestBody String gameID) throws GameNotFoundException {
-        gameplayService.deleteGameplay(gameID);
+    public void deleteGameplayRoom(@RequestBody String gameID) throws GameNotFoundException {
+        gameplayService.deleteGameplayRoom(gameID);
     }
 }
