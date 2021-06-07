@@ -10,7 +10,8 @@ import com.keepcoding.api_planes_on_paper.models.GameplayStatus;
 import com.keepcoding.api_planes_on_paper.models.GameplayModel;
 import com.keepcoding.api_planes_on_paper.models.PlayerModel;
 import com.keepcoding.api_planes_on_paper.models.PlayerStatus;
-import com.keepcoding.api_planes_on_paper.service.util.VerifyBorder;
+import com.keepcoding.api_planes_on_paper.service.util.AccessTokenGenerator;
+import com.keepcoding.api_planes_on_paper.service.util.VerifyPlanesBorder;
 import com.keepcoding.api_planes_on_paper.storage.GameplayRepository;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 import javax.transaction.Transactional;
 
@@ -105,37 +105,23 @@ public class GameplayService {
 	}
 
 	// INSERT INTO gameplay_repository VALUES gameplay_room
+	private final AccessTokenGenerator accessTokenGenerator = new AccessTokenGenerator();
+
 	public GameplayModel createNewGameplayRoom(String playerNickname) {
 		// create a new gameplay model
 		final String nickname = playerNickname.replaceAll("\"", "");
 		final PlayerModel playerOne = new PlayerModel(nickname, false, false, 0);
 		final GameplayModel gameplayModel = new GameplayModel(
-				GameplayStatus.WAITING, PlayerStatus.PLAYER_ONE, accessTokenGenerator(), playerOne);
+				GameplayStatus.WAITING, PlayerStatus.PLAYER_ONE, accessTokenGenerator.accessToken(), playerOne);
 
 		// make sure that the access token is unique
 		while (gameplayRepository.findExistentToken(gameplayModel.getAccessToken()).isPresent()) {
-			gameplayModel.setAccessToken(accessTokenGenerator());
+			gameplayModel.setAccessToken(accessTokenGenerator.accessToken());
 		}
 
 		// save the game to the database
 		gameplayRepository.save(gameplayModel);
 		return gameplayModel;
-	}
-
-	// returns a unique string representing the access token for a private gameplay room
-	private String accessTokenGenerator() {
-		final String characters = "0AaBbCc1DdEeF2fGgHh3IiJjK4kLlMmN5nOoPpQqRr6SsTtU7uVvWw8XxYyZz9";
-		final int tokenLength = 6;
-
-		String accessToken = "";
-		Random random = new Random();
-
-		for (int i = 0; i < tokenLength; i++) {
-			final char aux = characters.charAt(random.nextInt(characters.length()));
-			accessToken = accessToken + aux;
-		}
-
-		return accessToken;
 	}
 
 	// UPDATE gameplay_room
@@ -144,14 +130,14 @@ public class GameplayService {
 	// SET player_two.is_ready = true, player_tow.planes_border = :request.planesBorder)
 	@Transactional
     public void setReady(SetReadyRequest request) throws GameNotFoundException, InvalidBorderException {
-	    final VerifyBorder verifyBorder = new VerifyBorder(request.getPlanesBorder());
+	    final VerifyPlanesBorder verifyPlanesBorder = new VerifyPlanesBorder(request.getPlanesBorder());
 	    final String gameID = request.getGameID().replaceAll("\"", "");
 	    final PlayerStatus identity = request.getIdentity();
 	    final int[][] planesBorder = request.getPlanesBorder();
 
 	    // verify planes border and notify the player
 	    // if the planes border is not valid
-    	if (verifyBorder.verifyBorder()) {
+    	if (verifyPlanesBorder.verifyBorder()) {
 		    // search for a gameplay room based on the gameID
 		    GameplayModel gamePlayModel = gameplayRepository.findGameplayByGameID(gameID)
 				    .orElseThrow(() -> new GameNotFoundException(gameID));
@@ -269,11 +255,9 @@ public class GameplayService {
 			    }
 		    }
 
-		    if (gameplayModel.getGameStatus().equals(GameplayStatus.FINISHED)) {
-		    	// check if the game has finished
-			    if (playerOne.getHasSurrendered() && playerTwo.getHasSurrendered()) {
-			    	gameplayRepository.delete(gameplayModel);
-			    }
+		    // check if the game has finished
+		    if (playerOne.getHasSurrendered() && playerTwo.getHasSurrendered()) {
+			    gameplayRepository.delete(gameplayModel);
 		    }
 
 		    return false;

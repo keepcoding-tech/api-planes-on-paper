@@ -2,11 +2,11 @@ package com.keepcoding.api_planes_on_paper.service.util;
 
 import java.util.Arrays;
 
-public class VerifyBorder {
+public class VerifyPlanesBorder {
 	private final int[][] planesBorder;
 	private int[][] border = new int[10][10];
 
-	public VerifyBorder(int[][] planesBorder) {
+	public VerifyPlanesBorder(int[][] planesBorder) {
 		this.planesBorder = planesBorder;
 	}
 
